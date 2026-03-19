@@ -19,8 +19,6 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
 });
 
-export const unstable_instant = { prefetch: "static" };
-
 export default function Home() {
   return (
     <>
