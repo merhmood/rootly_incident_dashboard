@@ -6,6 +6,9 @@ import { SloChart } from "./_components/SloChart";
 import { ManagerInsights } from "./_components/ManagerInsights";
 import { SignalQualitySection } from "./_components/SignalQuality";
 import { OperationalIntelligence } from "./_components/OperationalIntelligence";
+import { fetchRootlyIncidents, RootlyIncident } from "./lib/rootly";
+import { incidents as mockIncidents } from "./data";
+import { ReportActionsWrapper } from "./_components/ReportActionsWrapper";
 
 const plexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600"],
@@ -19,7 +22,19 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
 });
 
-export default function Home() {
+export default async function Home() {
+  const liveIncidents = await fetchRootlyIncidents();
+  const incidents = liveIncidents.length > 0 ? liveIncidents : mockIncidents;
+
+  // Compute live KPIs
+  const totalIncidents = incidents.length;
+  const sev1Count = incidents.filter(i => i.sev === 'SEV1').length;
+  const sev2Count = incidents.filter(i => i.sev === 'SEV2').length;
+  const activeCount = incidents.filter(i => i.status === 'started').length;
+  const sysWideCount = incidents.filter(i => i.systemWide).length;
+  const cancelledCount = incidents.filter(i => i.status === 'cancelled').length;
+  const noiseRate = totalIncidents > 0 ? Math.round((cancelledCount / totalIncidents) * 100) : 0;
+
   return (
     <>
       <Script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" strategy="afterInteractive" />
@@ -32,8 +47,11 @@ export default function Home() {
             <p>OutSystems Developer Cloud &nbsp;·&nbsp; Reporting period: Mar 13 – Mar 19, 2026</p>
           </div>
           <div className="hdr-right">
-            <div className="live-badge"><span className="dot"></span>3 Active Incidents</div>
-            <div className="hdr-ts">Generated: 2026-03-19 &nbsp;|&nbsp; Source: Rootly OPS</div>
+            <div className="flex items-center gap-4">
+              <div className="live-badge"><span className="dot"></span>{activeCount} Active Incidents</div>
+              <ReportActionsWrapper />
+            </div>
+            <div className="hdr-ts">Generated: {new Date().toISOString().split('T')[0]} &nbsp;|&nbsp; Source: {liveIncidents.length > 0 ? 'Rootly LIVE' : 'Rootly OPS (Mock)'}</div>
           </div>
         </header>
 
@@ -44,11 +62,11 @@ export default function Home() {
         <section>
           <div className="sec mb24">Executive Summary</div>
           <div className="kpi-grid fade-in">
-            <KpiCard label="Total SLO Incidents" value="35" sub="All severities this week" />
-            <KpiCard label="SEV1 Incidents" value="6" sub="1 active right now" variant="alert" />
-            <KpiCard label="SEV2 Incidents" value="18" sub="2 active right now" variant="warn" />
-            <KpiCard label="Customer Impact" value="2" sub="Confirmed system-wide" variant="alert" />
-            <KpiCard label="Signal Noise" value={<span>38<span style={{ fontSize: '18px' }}>%</span></span>} sub="9 dup / false-positive" variant="warn" />
+            <KpiCard label="Total SLO Incidents" value={totalIncidents.toString()} sub="All severities this week" />
+            <KpiCard label="SEV1 Incidents" value={sev1Count.toString()} sub={`${incidents.filter(i => i.sev === 'SEV1' && i.status === 'started').length} active right now`} variant="alert" />
+            <KpiCard label="SEV2 Incidents" value={sev2Count.toString()} sub={`${incidents.filter(i => i.sev === 'SEV2' && i.status === 'started').length} active right now`} variant="warn" />
+            <KpiCard label="Customer Impact" value={sysWideCount.toString()} sub="Confirmed system-wide" variant="alert" />
+            <KpiCard label="Signal Noise" value={<span>{noiseRate}<span style={{ fontSize: '18px' }}>%</span></span>} sub={`${cancelledCount} dup / false-positive`} variant="warn" />
             <KpiCard label="MTTD (All)" value="0h" sub="All incidents acked instantly" valueStyle={{ color: 'var(--g)' }} />
           </div>
         </section>
@@ -138,44 +156,24 @@ export default function Home() {
           <div className="sec mb24">Active Incidents — Right Now</div>
           <div className="card mb32 fade-in">
             <div style={{ fontSize: '11px', color: 'var(--t2)', marginBottom: '14px' }}>
-              3 incidents currently in <b style={{ color: 'var(--r)' }}>started</b> state with no mitigation recorded yet. Requires immediate attention.
+              {activeCount} incident{activeCount !== 1 ? 's' : ''} currently in <b style={{ color: 'var(--r)' }}>started</b> state with no mitigation recorded yet. Requires immediate attention.
             </div>
 
-            <ActiveIncident
-              title="System-wide · ga · morpheus_ai_llm_gw_error_rate"
-              meta="Started: 2026-03-19T02:27:12 PDT &nbsp;·&nbsp; MTTD: 0h &nbsp;·&nbsp; Mitigation: —"
-              dotClass="inc-r"
-              tags={[
-                { label: "SEV1", variant: "tag-r" },
-                { label: "Morpheus" },
-                { label: "AI LLM Gateway" },
-                { label: "0h acknowledged", variant: "tag-r" },
-              ]}
-            />
-
-            <ActiveIncident
-              title="System-wide · ga · tenant-provisioning-success-rate"
-              meta="Started: 2026-03-19T02:33:22 PDT &nbsp;·&nbsp; MTTD: 0h &nbsp;·&nbsp; Mitigation: —"
-              dotClass="inc-y"
-              tags={[
-                { label: "SEV2", variant: "tag-y" },
-                { label: "PaaS" },
-                { label: "Tenant Provisioning" },
-                { label: "system-wide: No" },
-              ]}
-            />
-
-            <ActiveIncident
-              title="System-wide · ga · nats-availability"
-              meta="Started: 2026-03-18T22:43:05 PDT &nbsp;·&nbsp; MTTD: 0h &nbsp;·&nbsp; Mitigation: —"
-              dotClass="inc-y"
-              tags={[
-                { label: "SEV2", variant: "tag-y" },
-                { label: "Unassigned" },
-                { label: "NATS Messaging" },
-                { label: "stream: N/A" },
-              ]}
-            />
+            {incidents.filter(i => i.status === 'started').map((i, idx) => (
+              <ActiveIncident
+                key={i.id}
+                title={`${i.systemWide ? 'System-wide' : 'Component'} · ${i.type} · ${i.slo}`}
+                meta={`Started: ${i.date} &nbsp;·&nbsp; MTTD: ${i.mttd}h &nbsp;·&nbsp; Mitigation: —`}
+                dotClass={i.sev === 'SEV1' ? 'inc-r' : 'inc-y'}
+                tags={[
+                  { label: i.sev, variant: i.sev === 'SEV1' ? 'tag-r' : 'tag-y' },
+                  { label: i.stream },
+                  { label: i.type },
+                  { label: `${i.mttd}h acknowledged`, variant: i.mttd > 1 ? 'tag-r' : 'tag-n' },
+                ]}
+              />
+            ))}
+            {activeCount === 0 && <div className="text-center py-4 text-t3 text-sm">No active incidents</div>}
           </div>
         </section>
 
@@ -184,7 +182,7 @@ export default function Home() {
           <div className="sec mb24">Full Incident Log — SEV1 + SEV2</div>
           <div className="card mb32 fade-in">
             <Suspense fallback={<div className="h-64 animate-pulse" />}>
-              <IncidentTable />
+              <IncidentTable data={incidents} />
             </Suspense>
           </div>
         </section>

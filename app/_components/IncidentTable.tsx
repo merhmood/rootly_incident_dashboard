@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { incidents } from "../data";
+import { RootlyIncident } from "../lib/rootly";
 
-export function IncidentTable() {
+interface IncidentTableProps {
+  data: RootlyIncident[];
+}
+
+export function IncidentTable({ data }: IncidentTableProps) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  const filteredIncidents = incidents.filter((i: any) => {
+  const filteredIncidents = data.filter((i) => {
     let matchGeneral = true;
     if (filter === "sev1") matchGeneral = i.sev === "SEV1";
     else if (filter === "sev2") matchGeneral = i.sev === "SEV2";
@@ -28,7 +32,7 @@ export function IncidentTable() {
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '10px', color: 'var(--t3)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '.5px' }}>General Filter</div>
         <div className="filter-row" style={{ marginBottom: '16px' }}>
-          <button className={`fbtn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All ({incidents.length})</button>
+          <button className={`fbtn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All ({data.length})</button>
           <button className={`fbtn f-sev1 ${filter === 'sev1' ? 'active' : ''}`} onClick={() => setFilter('sev1')}>SEV1 only</button>
           <button className={`fbtn f-sev2 ${filter === 'sev2' ? 'active' : ''}`} onClick={() => setFilter('sev2')}>SEV2 only</button>
           <button className={`fbtn ${filter === 'active' ? 'active' : ''}`} onClick={() => setFilter('active')}>Active</button>
